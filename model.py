@@ -90,6 +90,7 @@ def getFinalData(imagefiles, augment=True):
 def generate_data(xdata,ydata,batch_size=32):
     while 1:
 
+
         yield xdata,ydata
 
 
