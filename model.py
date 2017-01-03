@@ -48,7 +48,7 @@ def getnormalizeddata(filelocations,yoriginaldata, debug=False):
     xnormalized = []
     for filename in filelocations:
         image = getImage(filename)
-        resize = resizeimage(image, 8)
+        resize = resizeimage(image, 4)
         normalizedimage = normalizeImage(resize)
         xnormalized.append(normalizedimage)
         if debug and len(xnormalized) % 100 == 0:
@@ -90,8 +90,6 @@ def getFinalData(imagefiles,yoriginaldata, augment=True):
 
 
 def generate_data(xdata,ydata,batch_size=128,pr_threshold=0.5):
-    batch_x_data = []
-    batch_y_data = []
     while 1:
         batch_x_data = []
         batch_y_data = []
@@ -102,7 +100,7 @@ def generate_data(xdata,ydata,batch_size=128,pr_threshold=0.5):
                 rand_i = np.random.randint(len(xdata))
                 if abs(ydata[rand_i]) < .1:
                     pr_val = np.random.uniform()
-                    if(pr_val>pr_threshold):
+                    if pr_val>pr_threshold:
                         keep_pr = 1
                 else:
                     keep_pr = 1
@@ -118,41 +116,46 @@ def trainmodel(X_final,Y_final, batch_size=128, nb_epoch=20, kernel_size=(5, 5),
     callbacks_list = [checkpoint]
     if model is None:
         model = Sequential()
-        model.add(Convolution2D(nb_filters, kernel_size[0], kernel_size[1],
-                                border_mode='same',
-                                input_shape=(80/2, 40/2, 3,)))
-        #model.add(MaxPooling2D())
-#        model.add(Dropout(0.5))
-        model.add(Convolution2D(nb_filters * 2, kernel_size[0], kernel_size[1],
-                                border_mode='same',
-                                input_shape=(80/2, 40/2, 32,)))
-        #model.add(MaxPooling2D())
-#        model.add(Dropout(0.5))
-        model.add(Convolution2D(nb_filters * 4, kernel_size[0], kernel_size[1],
-                                border_mode='same',
-                                input_shape=(80/2, 40/2, 64,)))
-        model.add(MaxPooling2D())
-#        model.add(Dropout(0.5))
-        model.add(Convolution2D(nb_filters * 8, kernel_size[0], kernel_size[1],
-                                border_mode='same',
-                                input_shape=(40/2, 20/2, 128,)))
-        model.add(MaxPooling2D())
-#        model.add(Dropout(0.5))
-        model.add(Convolution2D(nb_filters * 16, kernel_size[0], kernel_size[1],
-                                border_mode='same',
-                                input_shape=(20/2, 10/2, 256,)))
-        model.add(Dropout(0.5))
+        model.add(Convolution2D(24, kernel_size[0], kernel_size[1],
+                                border_mode='same',subsample=(2,2),init="he_normal",input_shape=(80, 40, 3,)))
+        model.add(ELU())
+
+        model.add(Convolution2D(36, kernel_size[0], kernel_size[1],
+                                border_mode='same',subsample=(1,1),init="he_normal"))
+        model.add(ELU())
+        model.add(Convolution2D(48, kernel_size[0], kernel_size[1],
+                                border_mode='same',subsample=(1,1),init="he_normal"))
+        model.add(ELU())
+
+        model.add(Convolution2D(64, 3, 3,
+                                border_mode='same',subsample=(1,1),init="he_normal"))
+        model.add(ELU())
+
+        model.add(Convolution2D(64, 3, 3,
+                                border_mode='same',subsample=(1,1),init="he_normal"))
+        model.add(ELU())
         model.add(Flatten())
-        model.add(Dense(128))
-        model.add(Dense(64))
-        model.add(Dense(64))
-        model.add(Dense(1))
+        model.add(ELU())
+        model.add(Dense(1164,init="he_normal"))
+        model.add(ELU())
+        model.add(Dense(100,init="he_normal"))
+        model.add(ELU())
+        model.add(Dense(50,init="he_normal"))
+        model.add(ELU())
+        model.add(Dense(10,init="he_normal"))
+        model.add(ELU())
+        model.add(Dense(1,init="he_normal"))
+
         model.compile(loss='mean_squared_error', optimizer='adam')
     else:
         print("Loaded model from file")
 
     print(model.summary())
-    history = model.fit_generator(generate_data(X_final,Y_final),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.5),batch_size,nb_epoch*2,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.8),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.0),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.1),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.2),batch_size,nb_epoch,callbacks=callbacks_list)
     return model
 
 
@@ -192,6 +195,7 @@ if __name__ == '__main__':
                 model.load_weights(weights_file)
                 print("Loading model from file")
 
-    model = trainmodel(xfinal, yfinal, batch_size=128*10,nb_epoch=10 ,model=model)
+    model = trainmodel(xfinal, yfinal, batch_size=1280*10,nb_epoch=5 ,model=model)
+
     save_model(model)
 
