@@ -166,7 +166,7 @@ def generate_data(data,batch_size=128,pr_threshold=0.5):
 
 
 
-def trainmodel(data, batch_size=128, nb_epoch=20,model=None):
+def trainmodel(data, batch_size=128, nb_epoch=20,model=None,pr_threshold_val=0.5):
     checkpoint = ModelCheckpoint("model.h5", monitor='loss', verbose=1, save_best_only=False, mode='max')
     callbacks_list = [checkpoint]
     if model is None:
@@ -206,11 +206,8 @@ def trainmodel(data, batch_size=128, nb_epoch=20,model=None):
         print("Loaded model from file")
 
     print(model.summary())
-    history = model.fit_generator(generate_data(data,pr_threshold=0.5),batch_size,nb_epoch*2,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(data,pr_threshold=0.8),batch_size,nb_epoch,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(data,pr_threshold=0.0),batch_size,nb_epoch,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(data,pr_threshold=0.1),batch_size,nb_epoch,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(data,pr_threshold=0.2),batch_size,nb_epoch,callbacks=callbacks_list)
+    model.fit_generator(generate_data(data,pr_threshold=pr_threshold_val),batch_size,nb_epoch*2,callbacks=callbacks_list)
+
     return model
 
 
@@ -250,6 +247,8 @@ if __name__ == '__main__':
                 model.load_weights(weights_file)
                 print("Loading model from file")
 
-    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=5 ,model=model)
+    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=10 ,model=model,pr_threshold_val=0.5)
+    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=10 ,model=model,pr_threshold_val=0.9)
+    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=10 ,model=model,pr_threshold_val=0.0)
     save_model(model)
 
