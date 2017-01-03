@@ -79,7 +79,7 @@ def augmentdata(xnormalizeddata, ydata):
     return xnormalizeddata, ydata
 
 
-def getFinalData(imagefiles,yoriginaldata, augment=True):
+def getFinalData(imagefiles,yoriginaldata, augment=False):
     xnormalized, ydata = getnormalizeddata(imagefiles,yoriginaldata, debug=True)
     if (augment):
         xfinal, yfinal = augmentdata(xnormalized, ydata)
@@ -89,50 +89,105 @@ def getFinalData(imagefiles,yoriginaldata, augment=True):
     return np.asarray(xfinal), np.asarray(yfinal)
 
 
-def generate_data(xdata,ydata,batch_size=128,pr_threshold=0.5):
+def getimagedata(line_data):
+    lrc_i = np.random.randint(3)
+    path_file = None
+    shift_ang = None
+    if (lrc_i == 0 ):
+        path_file = line_data[0].values[0].strip()
+        shift_ang = 0
+    elif (lrc_i == 1):
+        path_file = line_data[1].values[0].strip()
+        shift_ang = .25
+    elif (lrc_i == 2):
+        path_file = line_data[2].values[0].strip()
+        shift_ang = -.25
+    y_steer = line_data[3].values[0] + shift_ang
+
+    xdata = getImage(path_file)
+    resize = resizeimage(xdata,8)
+    shadowed = add_random_shadow(resize)
+
+    normalizedimage = normalizeImage(shadowed)
+    return normalizedimage,y_steer
+
+
+
+def add_random_shadow(image):
+    top_y = 320*np.random.uniform()
+    top_x = 0
+    bot_x = 160
+    bot_y = 320*np.random.uniform()
+    image_hls = cv2.cvtColor(image,cv2.COLOR_RGB2HLS)
+    shadow_mask = 0*image_hls[:,:,1]
+    X_m = np.mgrid[0:image.shape[0],0:image.shape[1]][0]
+    Y_m = np.mgrid[0:image.shape[0],0:image.shape[1]][1]
+    shadow_mask[((X_m-top_x)*(bot_y-top_y) -(bot_x - top_x)*(Y_m-top_y) >=0)]=1
+    #random_bright = .25+.7*np.random.uniform()
+    if np.random.randint(2)==1:
+        random_bright = .5
+        cond1 = shadow_mask==1
+        cond0 = shadow_mask==0
+        if np.random.randint(2)==1:
+            image_hls[:,:,1][cond1] = image_hls[:,:,1][cond1]*random_bright
+        else:
+            image_hls[:,:,1][cond0] = image_hls[:,:,1][cond0]*random_bright
+    image = cv2.cvtColor(image_hls,cv2.COLOR_HLS2RGB)
+    return image
+
+
+def generate_data(data,batch_size=128,pr_threshold=0.5):
     while 1:
         batch_x_data = []
         batch_y_data = []
         for i in range(batch_size):
-            rand_i = np.random.randint(len(xdata))
+            xdata = None
+            ydata = None
             keep_pr = 0
             while keep_pr==0:
-                rand_i = np.random.randint(len(xdata))
-                if abs(ydata[rand_i]) < .1:
+                rand_i = np.random.randint(len(data))
+                line_data = data.loc[[rand_i]]
+                xdata,ydata = getimagedata(line_data)
+                if abs(ydata) < .1:
                     pr_val = np.random.uniform()
                     if pr_val>pr_threshold:
                         keep_pr = 1
                 else:
                     keep_pr = 1
-
-            batch_x_data.append(xdata[rand_i])
-            batch_y_data.append(ydata[rand_i])
+            image = xdata
+            y = ydata
+            fliprand = np.random.randint(2)
+            if fliprand == 1:
+                image = flipimage(image)
+                y = y * -1
+            batch_x_data.append(image)
+            batch_y_data.append(y)
         yield np.asarray(batch_x_data),np.asarray(batch_y_data)
 
 
 
-def trainmodel(X_final,Y_final, batch_size=128, nb_epoch=20, kernel_size=(5, 5), nb_filters=32,model=None):
+def trainmodel(data, batch_size=128, nb_epoch=20,model=None):
     checkpoint = ModelCheckpoint("model.h5", monitor='loss', verbose=1, save_best_only=False, mode='max')
     callbacks_list = [checkpoint]
     if model is None:
         model = Sequential()
-        model.add(Convolution2D(24, kernel_size[0], kernel_size[1],
-                                border_mode='same',subsample=(2,2),init="he_normal",input_shape=(80, 40, 3,)))
+        model.add(Convolution2D(24, 4, 4,
+                                border_mode='valid',subsample=(2,2),init="he_normal",input_shape=(80/2, 40/2, 3,)))
         model.add(ELU())
 
-        model.add(Convolution2D(36, kernel_size[0], kernel_size[1],
-                                border_mode='same',subsample=(1,1),init="he_normal"))
+        model.add(Convolution2D(36, 4, 4,
+                                border_mode='valid',subsample=(1,1),init="he_normal"))
         model.add(ELU())
-        model.add(Convolution2D(48, kernel_size[0], kernel_size[1],
-                                border_mode='same',subsample=(1,1),init="he_normal"))
-        model.add(ELU())
-
-        model.add(Convolution2D(64, 3, 3,
-                                border_mode='same',subsample=(1,1),init="he_normal"))
+        model.add(Convolution2D(48, 4, 4,
+                                border_mode='valid',subsample=(1,1),init="he_normal"))
         model.add(ELU())
 
-        model.add(Convolution2D(64, 3, 3,
-                                border_mode='same',subsample=(1,1),init="he_normal"))
+        model.add(Convolution2D(64, 2, 2,
+                                border_mode='valid',subsample=(1,1),init="he_normal"))
+        model.add(ELU())
+
+        model.add(Convolution2D(64, 2, 2,
+                                border_mode='valid',subsample=(1,1),init="he_normal"))
         model.add(ELU())
         model.add(Flatten())
         model.add(ELU())
@@ -151,11 +206,11 @@ def trainmodel(X_final,Y_final, batch_size=128, nb_epoch=20, kernel_size=(5, 5),
         print("Loaded model from file")
 
     print(model.summary())
-    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.5),batch_size,nb_epoch*2,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.8),batch_size,nb_epoch,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.0),batch_size,nb_epoch,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.1),batch_size,nb_epoch,callbacks=callbacks_list)
-    history = model.fit_generator(generate_data(X_final,Y_final,pr_threshold=0.2),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(data,pr_threshold=0.5),batch_size,nb_epoch*2,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(data,pr_threshold=0.8),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(data,pr_threshold=0.0),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(data,pr_threshold=0.1),batch_size,nb_epoch,callbacks=callbacks_list)
+    history = model.fit_generator(generate_data(data,pr_threshold=0.2),batch_size,nb_epoch,callbacks=callbacks_list)
     return model
 
 
@@ -172,9 +227,9 @@ def save_model(model, filename="model.h5",model_arch="model.json"):
 
 if __name__ == '__main__':
     dataframe = pd.read_csv("udacity_data/data/driving_log.csv", delim_whitespace=False, header=None)
-    centerimages = (dataframe[:][0])
-    yoriginal = (dataframe[:][3])
-    xfinal, yfinal = getFinalData(centerimages,yoriginal)
+    #centerimages = (dataframe[:][0])
+    #yoriginal = (dataframe[:][3])
+    #xfinal, yfinal = getFinalData(centerimages,yoriginal)
 
     # xgen,ygen = next(generate_data(xfinal,yfinal))
     # print(ygen)
@@ -195,7 +250,6 @@ if __name__ == '__main__':
                 model.load_weights(weights_file)
                 print("Loading model from file")
 
-    model = trainmodel(xfinal, yfinal, batch_size=1280*10,nb_epoch=5 ,model=model)
-
+    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=5 ,model=model)
     save_model(model)
 

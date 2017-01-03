@@ -34,7 +34,7 @@ def telemetry(sid, data):
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
     ndarrayimage = np.asarray(image)
-    resize = resizeimage(ndarrayimage, 4)
+    resize = resizeimage(ndarrayimage, 8)
     normalized_image = normalizeImage(resize)
     image_array = np.asarray(normalized_image)
     transformed_image_array = image_array[None, :, :, :]
