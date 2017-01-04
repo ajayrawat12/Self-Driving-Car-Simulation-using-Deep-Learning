@@ -48,7 +48,7 @@ def getnormalizeddata(filelocations,yoriginaldata, debug=False):
     xnormalized = []
     for filename in filelocations:
         image = getImage(filename)
-        resize = resizeimage(image, 4)
+        resize = resizeimage(image)
         normalizedimage = normalizeImage(resize)
         xnormalized.append(normalizedimage)
         if debug and len(xnormalized) % 100 == 0:
@@ -58,8 +58,10 @@ def getnormalizeddata(filelocations,yoriginaldata, debug=False):
     return xnormalized, ydata
 
 
-def resizeimage(image, factor):
-    return cv2.resize(image, (int(image.shape[0] / factor), int(image.shape[1] / factor)))
+def resizeimage(image):
+    cropped = image[32:135, :]
+    resized = cv2.resize(cropped, (200, 66), interpolation=cv2.INTER_AREA)
+    return resized
 
 
 def flipimage(image):
@@ -105,7 +107,7 @@ def getimagedata(line_data):
     y_steer = line_data[3].values[0] + shift_ang
 
     xdata = getImage(path_file)
-    resize = resizeimage(xdata,8)
+    resize = resizeimage(xdata)
     shadowed = add_random_shadow(resize)
 
     normalizedimage = normalizeImage(shadowed)
@@ -171,22 +173,22 @@ def trainmodel(data, batch_size=128, nb_epoch=20,model=None,pr_threshold_val=0.5
     callbacks_list = [checkpoint]
     if model is None:
         model = Sequential()
-        model.add(Convolution2D(24, 4, 4,
-                                border_mode='valid',subsample=(2,2),init="he_normal",input_shape=(80/2, 40/2, 3,)))
+        model.add(Convolution2D(24, 5, 5,
+                                border_mode='valid',subsample=(2,2),init="he_normal",input_shape=(66, 200, 3,)))
         model.add(ELU())
 
-        model.add(Convolution2D(36, 4, 4,
-                                border_mode='valid',subsample=(1,1),init="he_normal"))
+        model.add(Convolution2D(36, 5, 5,
+                                border_mode='valid',subsample=(2,2),init="he_normal"))
         model.add(ELU())
-        model.add(Convolution2D(48, 4, 4,
+        model.add(Convolution2D(48, 5, 5,
+                                border_mode='valid',subsample=(2,2),init="he_normal"))
+        model.add(ELU())
+
+        model.add(Convolution2D(64, 3, 3,
                                 border_mode='valid',subsample=(1,1),init="he_normal"))
         model.add(ELU())
 
-        model.add(Convolution2D(64, 2, 2,
-                                border_mode='valid',subsample=(1,1),init="he_normal"))
-        model.add(ELU())
-
-        model.add(Convolution2D(64, 2, 2,
+        model.add(Convolution2D(64, 3, 3,
                                 border_mode='valid',subsample=(1,1),init="he_normal"))
         model.add(ELU())
         model.add(Flatten())
@@ -206,7 +208,7 @@ def trainmodel(data, batch_size=128, nb_epoch=20,model=None,pr_threshold_val=0.5
         print("Loaded model from file")
 
     print(model.summary())
-    model.fit_generator(generate_data(data,pr_threshold=pr_threshold_val),batch_size,nb_epoch*2,callbacks=callbacks_list)
+    model.fit_generator(generate_data(data,pr_threshold=pr_threshold_val),batch_size,nb_epoch,callbacks=callbacks_list)
 
     return model
 
