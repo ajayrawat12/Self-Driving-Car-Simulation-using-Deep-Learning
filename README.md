@@ -108,7 +108,7 @@ In addition to the generator for training data, I have also created another gene
 
 ##Modifications to drive.py : 
 
-* I have modified the drive.py to first not exceed speed of 12MPH as well as cropping as well as normalize the image before inputting the image into the model to predict the steering angle
+* I have modified the drive.py to limit the car speed to 12MPH as well as cropping as well as normalize the image before inputting the image into the model to predict the steering angle
 
 ###Results and observations
 * Below is a link of a video that I recorded that shows the successful navigation of the car on track 1. 
