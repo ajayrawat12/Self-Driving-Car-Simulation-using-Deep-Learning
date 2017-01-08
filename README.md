@@ -108,17 +108,17 @@ In addition to the generator for training data, I have also created another gene
 
 ##Modifications to drive.py : 
 
-*I have modified the drive.py to first not exceed speed of 12 as well as cropping as well as normalize the image before inputting the image into the model to predict the steering angle
+* I have modified the drive.py to first not exceed speed of 12 as well as cropping as well as normalize the image before inputting the image into the model to predict the steering angle
 
 ###Results and observations
-*Below is a link of a video that I recorded that shows the successful navigation of the car on track 1. 
+* Below is a link of a video that I recorded that shows the successful navigation of the car on track 1. 
  https://www.youtube.com/watch?v=_EY8tqy5Z9A&t=2s
-*The behavior of the car is different on different resolutions of the simulator. The above video recorded was on the simulatow with 1024x768 resolution with the 'Fantastic' graphics quality. This is expected since the input images on these settings would generate a different image than the one that would be generated on a lower quality resolution.
+* The behavior of the car is different on different resolutions of the simulator. The above video recorded was on the simulatow with 1024x768 resolution with the 'Fantastic' graphics quality. This is expected since the input images on these settings would generate a different image than the one that would be generated on a lower quality resolution.
 
 ##Future work and scope for improvement
 
-*In my tests, I observed that the car is very good at navigating the roads where there is a turn. The car manages to stay on the center of the road at all times on such curvy roads. However, when the car is on a straigth road, it keeps on correcting itself from left to right and this leads to unstable behavior at higher speeds. At speeds approaching close to 30, it is very unstable. This shows that the car has been well trained on turns however it needs more training on subtle adjustments on straight roads.
-*The model is able to steer properly on track 2 with lower resolution. However it fails to navigate on the 2nd track with higher resolution. This means that the model still needs to be trained with more samples and more variety of data. 
+* In my tests, I observed that the car is very good at navigating the roads where there is a turn. The car manages to stay on the center of the road at all times on such curvy roads. However, when the car is on a straigth road, it keeps on correcting itself from left to right and this leads to unstable behavior at higher speeds. At speeds approaching close to 30, it is very unstable. This shows that the car has been well trained on turns however it needs more training on subtle adjustments on straight roads.
+* The model is able to steer properly on track 2 with lower resolution. However it fails to navigate on the 2nd track with higher resolution. This means that the model still needs to be trained with more samples and more variety of data. 
 
 #References
 
