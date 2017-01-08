@@ -229,8 +229,8 @@ if __name__ == '__main__':
                 model.load_weights(weights_file)
                 print("Loading model from file")
 
-    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=10 ,model=model,pr_threshold_val=0.5)
-    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=5 ,model=model,pr_threshold_val=0.9)
-    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=5 ,model=model,pr_threshold_val=0.0)
+    model = trainmodel(dataframe ,batch_size=256*100,nb_epoch=10 ,model=model,pr_threshold_val=0.5)
+    model = trainmodel(dataframe ,batch_size=256*100,nb_epoch=5 ,model=model,pr_threshold_val=0.9)
+    model = trainmodel(dataframe ,batch_size=256*100,nb_epoch=5 ,model=model,pr_threshold_val=0.0)
     save_model(model)
 
