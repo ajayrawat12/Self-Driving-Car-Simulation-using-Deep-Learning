@@ -1,19 +1,14 @@
 import argparse
 import base64
 import json
+from io import BytesIO
 
+import eventlet.wsgi
 import numpy as np
 import socketio
-import eventlet
-import eventlet.wsgi
-import time
 from PIL import Image
-from PIL import ImageOps
-from flask import Flask, render_template
-from io import BytesIO
-import cv2
+from flask import Flask
 from keras.models import model_from_json
-from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array
 
 from model import resizeimage, normalizeImage
 
@@ -41,7 +36,10 @@ def telemetry(sid, data):
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
     steering_angle = float(model.predict(transformed_image_array, batch_size=1))
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
-    if float(speed) < 10:
+
+    target_speed = 12
+
+    if float(speed) < target_speed:
         throttle = 0.3
     else:
         throttle = 0

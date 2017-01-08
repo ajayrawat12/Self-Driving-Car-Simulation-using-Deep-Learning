@@ -1,17 +1,13 @@
-import argparse
+import json
+import os
 
 import cv2
-import os
-import pandas as pd
 import matplotlib.pyplot as plt
-import tensorflow as tf
 import numpy as np
+import pandas as pd
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, Convolution2D, MaxPooling2D, Dropout, Flatten, MaxPooling3D, ELU
+from keras.layers import Dense, Convolution2D, Flatten, ELU
 from keras.models import Sequential, model_from_json
-from sklearn.model_selection import train_test_split
-import json
-
 
 
 # This method is for displaying the image from a file for debugging purpose
@@ -44,53 +40,20 @@ def normalizeImage(image):
     return image
 
 
-def getnormalizeddata(filelocations,yoriginaldata, debug=False):
-    xnormalized = []
-    for filename in filelocations:
-        image = getImage(filename)
-        resize = resizeimage(image)
-        normalizedimage = normalizeImage(resize)
-        xnormalized.append(normalizedimage)
-        if debug and len(xnormalized) % 100 == 0:
-            print("Loaded " + str(len(xnormalized)) + "images")
-
-    ydata = yoriginaldata
-    return xnormalized, ydata
-
-
+# We crop the image to include only the main road section .
+# Then we resize the image to 200 x 66 to match the structure as in the NVIDIA model
 def resizeimage(image):
     cropped = image[32:135, :]
     resized = cv2.resize(cropped, (200, 66), interpolation=cv2.INTER_AREA)
     return resized
 
-
+# This function is to generate flipped images to simulate opposite side driving
 def flipimage(image):
     flippedimage = cv2.flip(image, 1)
     return flippedimage
 
 
-def augmentdata(xnormalizeddata, ydata):
-    datalen = len(ydata)
-    i = 0
-    while i < datalen:
-        currentx = xnormalizeddata[i]
-        flippedimage = flipimage(currentx)
-        xnormalizeddata.append(flippedimage)
-        ydata = ydata.append(pd.Series(ydata[i] * -1))
-        i = i + 1
-    return xnormalizeddata, ydata
-
-
-def getFinalData(imagefiles,yoriginaldata, augment=False):
-    xnormalized, ydata = getnormalizeddata(imagefiles,yoriginaldata, debug=True)
-    if (augment):
-        xfinal, yfinal = augmentdata(xnormalized, ydata)
-    else:
-        xfinal = xnormalized
-        yfinal = ydata
-    return np.asarray(xfinal), np.asarray(yfinal)
-
-
+# This function creates an image for the training data
 def getimagedata(line_data):
     lrc_i = np.random.randint(3)
     path_file = None
@@ -113,8 +76,16 @@ def getimagedata(line_data):
     normalizedimage = normalizeImage(shadowed)
     return normalizedimage,y_steer
 
+def getvalidationdata(line_data):
+    path_file = line_data[0].values[0].strip()
+    y_steer = line_data[3].values[0]
+    xdata = getImage(path_file)
+    resize = resizeimage(xdata)
+    normalizedimage = normalizeImage(resize)
+    return normalizedimage,y_steer
 
-
+# This function is used to augment the data
+# and add random shadows to the image
 def add_random_shadow(image):
     top_y = 320*np.random.uniform()
     top_x = 0
@@ -125,7 +96,6 @@ def add_random_shadow(image):
     X_m = np.mgrid[0:image.shape[0],0:image.shape[1]][0]
     Y_m = np.mgrid[0:image.shape[0],0:image.shape[1]][1]
     shadow_mask[((X_m-top_x)*(bot_y-top_y) -(bot_x - top_x)*(Y_m-top_y) >=0)]=1
-    #random_bright = .25+.7*np.random.uniform()
     if np.random.randint(2)==1:
         random_bright = .5
         cond1 = shadow_mask==1
@@ -137,7 +107,7 @@ def add_random_shadow(image):
     image = cv2.cvtColor(image_hls,cv2.COLOR_HLS2RGB)
     return image
 
-
+#The generator for training the model
 def generate_data(data,batch_size=128,pr_threshold=0.5):
     while 1:
         batch_x_data = []
@@ -166,8 +136,24 @@ def generate_data(data,batch_size=128,pr_threshold=0.5):
             batch_y_data.append(y)
         yield np.asarray(batch_x_data),np.asarray(batch_y_data)
 
+# The generator for the validation data
+def generate_validation_data(data,batch_size=32):
+    while 1:
+        batch_x_data = []
+        batch_y_data = []
+        for i in range(batch_size):
+            rand_i = np.random.randint(len(data))
+            line_data = data.loc[[rand_i]]
+            xdata,ydata = getvalidationdata(line_data)
+            image = xdata
+            y = ydata
+            batch_x_data.append(image)
+            batch_y_data.append(y)
+        yield np.asarray(batch_x_data),np.asarray(batch_y_data)
 
 
+# We use the model as per the NVIDIA paper. We either load the model from the file and continue the training
+# or we create a fresh new model and start training it from scratch
 def trainmodel(data, batch_size=128, nb_epoch=20,model=None,pr_threshold_val=0.5):
     checkpoint = ModelCheckpoint("model.h5", monitor='loss', verbose=1, save_best_only=False, mode='max')
     callbacks_list = [checkpoint]
@@ -208,12 +194,16 @@ def trainmodel(data, batch_size=128, nb_epoch=20,model=None,pr_threshold_val=0.5
         print("Loaded model from file")
 
     print(model.summary())
-    model.fit_generator(generate_data(data,pr_threshold=pr_threshold_val),batch_size,nb_epoch,callbacks=callbacks_list)
+    model.fit_generator(generate_data(data,pr_threshold=pr_threshold_val),
+                        batch_size,nb_epoch,
+                        callbacks=callbacks_list,
+                        validation_data=generate_validation_data(data),
+                        nb_val_samples=3200)
 
     return model
 
 
-
+# We save the model at the end and reuse it for both training as well as driving
 def save_model(model, filename="model.h5",model_arch="model.json"):
     model.save(filepath=filename)
     model_json = model.to_json()
@@ -225,20 +215,10 @@ def save_model(model, filename="model.h5",model_arch="model.json"):
 
 
 if __name__ == '__main__':
+    #We use the Udacity data and augment it later on for training and validation
     dataframe = pd.read_csv("udacity_data/data/driving_log.csv", delim_whitespace=False, header=None)
-    #centerimages = (dataframe[:][0])
-    #yoriginal = (dataframe[:][3])
-    #xfinal, yfinal = getFinalData(centerimages,yoriginal)
 
-    # xgen,ygen = next(generate_data(xfinal,yfinal))
-    # print(ygen)
-
-    # X_train, X_valid, y_train, y_valid = train_test_split(
-    #     xfinal,
-    #     yfinal,
-    #     test_size=0.05,
-    #     random_state=832289)
-
+    #We load the model if we find it and continue training it by tweaking the parameters
     model = None
     if os.path.isfile("model.json"):
         with open('model.json', 'r') as jfile:
@@ -250,7 +230,7 @@ if __name__ == '__main__':
                 print("Loading model from file")
 
     model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=10 ,model=model,pr_threshold_val=0.5)
-    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=10 ,model=model,pr_threshold_val=0.9)
-    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=10 ,model=model,pr_threshold_val=0.0)
+    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=5 ,model=model,pr_threshold_val=0.9)
+    model = trainmodel(dataframe ,batch_size=1280*10,nb_epoch=5 ,model=model,pr_threshold_val=0.0)
     save_model(model)
 
