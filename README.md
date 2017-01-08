@@ -117,7 +117,7 @@ In addition to the generator for training data, I have also created another gene
 
 ##Future work and scope for improvement
 
-* In my tests, I observed that the car is very good at navigating the roads where there is a turn. The car manages to stay on the center of the road at all times on such curvy roads. However, when the car is on a straigth road, it keeps on correcting itself from left to right and this leads to unstable behavior at higher speeds. At speeds approaching close to 30, it is very unstable. This shows that the car has been well trained on turns however it needs more training on subtle adjustments on straight roads.
+* In my tests, I observed that the car is very good at navigating the roads where there is a turn. The car manages to stay on the center of the road at all times on such curvy roads. However, when the car is on a straight road, it keeps on correcting itself from left to right and this leads to unstable behavior at higher speeds. At speeds approaching close to 30, it is very unstable. This shows that the car has been well trained on turns however it needs more training on subtle adjustments on straight roads.
 * The model is able to steer properly on track 2 with lower resolution. However it fails to navigate on the 2nd track with higher resolution. This means that the model still needs to be trained with more samples and more variety of data. 
 
 #References
