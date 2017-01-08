@@ -6,9 +6,9 @@ I designed a CNN based on the NVidia example, which has been able to successfull
 
 I have followed the five convolutional layers with four fully connected layers leading to an output control value that determines the steering angle of the car as an output. The fully connected layers are designed to function as a controller for steering. However as noted in the NVIDIA paper, it is not possible to distinguish as to which parts of the network perform feature extraction and which parts of the network perform the steering control.
 
-We have not used any dropout layers in the architecture below as we are strictly following the NVIDIA architecture . Also in my tests, I saw a degradation in performance when I added dropout layers in between any of the layers shown below. We combat overfitting with data augmentation as described below. 
+I have not used any dropout layers in the architecture below as we are strictly following the NVIDIA architecture . Also in my tests, I saw a degradation in performance when I added dropout layers in between any of the layers shown below. We combat overfitting with data augmentation as described below. 
 
-We are using the adam optimizer since it given good results in my previous experiences and we do not need to adjust the learning rates manually. 
+I am using the adam optimizer since it given good results in my previous experiences and we do not need to adjust the learning rates manually. 
 
 The complete architecture of the model is summarized in diagram as below.
 
@@ -23,13 +23,13 @@ The raw data that was to be used for training this model was the Udacity data. I
 
 ####Image augmentation and preprocessing
 
-We have trained a new network from scratch vs using transfer learning and using qualities of a pre-trained network. Hence we will need a large amount of data for training the network from scratch.The data in the Udacity training is less as compared to the data required for training a completely new model.
+I have trained a new network from scratch vs using transfer learning and using qualities of a pre-trained network. Hence we would need a large amount of data for training the network from scratch.The data in the Udacity training is less as compared to the data required for training a completely new model.
 
-Hence we would need additional data from the existing training data in order to train the network and making a reliable model. 
+Hence we will need additional data from the existing training data in order to train the network and making a reliable model. 
 
-We have followed techniques as described in the NVIDIA paper for data augmentation and training. 
+I have followed techniques as described in the NVIDIA paper for data augmentation and training. 
 
-* We have decided to use all the 3 types of images ie center images, left images and right images captured in the training data. However in the test run, we only use the center images. This alone increases the training data available to us by a factor of 3. 
+* I have used all the 3 types of images ie center images, left images and right images captured in the training data. However in the test run, we only use the center images. This alone increases the training data available to us by a factor of 3. 
 
 * In order to use all the 3 types of images, we randomly select which image we would like to use. If we decide to use the left image, we adjust the steering angle output to by adding an offset of 0.25. This simulates the car on the left side of the road and the offset adds the steering control to adjust direction to the right to adjust and come back to the center of the road.This simulates our recovery mechanism in case we go off the center of the road. This automatically gives us the advantage of learning recovery in case we veer off the center of the road.
 
@@ -37,11 +37,11 @@ We have followed techniques as described in the NVIDIA paper for data augmentati
 
 * We do not add any offset in case we select a center image. 
 
-* In addition to add resilience to the network in terms of noise , color , shadows, we randomly add shadows to the image. This in turn makes in theory an extremely large number of unique samples available to learn from. 
+* In addition to the above image selection mechanism,to add resilience to the network in terms of noise and color, we randomly add shadows to the image. This in turn makes in theory an extremely large number of unique samples available for the network to learn from. 
 
 * Since the input to the network is of size 66x200, we have cropped the image to record only the part of the image that record the road. This allows the network to focus on the most important part of the image that would be required for training.
 
-* In addition to these augmentation, we also randomly flip the images from left to right and multiply the steering angle by -1 to simulate driving in the opposite direction. 
+* In addition to these augmentation, we also randomly flip the images from left to right and multiply the steering angle by -1 to simulate driving in the opposite direction. This would doubles the training data available to the network.
 
 * After all the preprocessing stages, we normalize the image so the values in the array lie between 0 and 1 . 
 
@@ -113,10 +113,12 @@ In addition to the generator for training data, I have also created another gene
 ###Results and observations
 *Below is a link of a video that I recorded that shows the successful navigation of the car on track 1. 
  https://www.youtube.com/watch?v=_EY8tqy5Z9A&t=2s
+*The behavior of the car is different on different resolutions of the simulator. The above video recorded was on the simulatow with 1024x768 resolution with the 'Fantastic' graphics quality. This is expected since the input images on these settings would generate a different image than the one that would be generated on a lower quality resolution.
 
 ##Future work and scope for improvement
 
-*In my tests, I observed that the car is very good at navigating the roads where there is a turn. The car manages to stay on the center of the road at all times on such curvy roads. However, when the car is on a straigth road, it keeps on correcting itself from left to right and this leads to unstable behavior at higher speeds. At speeds approaching close to 30, it is very unstable. This shows that the car has been well trained on turns however it needs more training on subtle adjustments on straight roads. 
+*In my tests, I observed that the car is very good at navigating the roads where there is a turn. The car manages to stay on the center of the road at all times on such curvy roads. However, when the car is on a straigth road, it keeps on correcting itself from left to right and this leads to unstable behavior at higher speeds. At speeds approaching close to 30, it is very unstable. This shows that the car has been well trained on turns however it needs more training on subtle adjustments on straight roads.
+*The model is able to steer properly on track 2 with lower resolution. However it fails to navigate on the 2nd track with higher resolution. This means that the model still needs to be trained with more samples and more variety of data. 
 
 #References
 
