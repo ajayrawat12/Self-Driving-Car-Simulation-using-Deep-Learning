@@ -154,7 +154,7 @@ def generate_validation_data(data,batch_size=32):
 
 # We use the model as per the NVIDIA paper. We either load the model from the file and continue the training
 # or we create a fresh new model and start training it from scratch
-def trainmodel(data, batch_size=128, nb_epoch=20,model=None,pr_threshold_val=0.5):
+def trainmodel(data, samples_per_epoch=128, nb_epoch=20, model=None, pr_threshold_val=0.5):
     checkpoint = ModelCheckpoint("model.h5", monitor='loss', verbose=1, save_best_only=False, mode='max')
     callbacks_list = [checkpoint]
     if model is None:
@@ -195,7 +195,7 @@ def trainmodel(data, batch_size=128, nb_epoch=20,model=None,pr_threshold_val=0.5
 
     print(model.summary())
     model.fit_generator(generate_data(data,pr_threshold=pr_threshold_val),
-                        batch_size,nb_epoch,
+                        samples_per_epoch, nb_epoch,
                         callbacks=callbacks_list,
                         validation_data=generate_validation_data(data),
                         nb_val_samples=3200)
@@ -229,8 +229,8 @@ if __name__ == '__main__':
                 model.load_weights(weights_file)
                 print("Loading model from file")
 
-    model = trainmodel(dataframe ,batch_size=256*100,nb_epoch=10 ,model=model,pr_threshold_val=0.5)
-    model = trainmodel(dataframe ,batch_size=256*100,nb_epoch=5 ,model=model,pr_threshold_val=0.9)
-    model = trainmodel(dataframe ,batch_size=256*100,nb_epoch=5 ,model=model,pr_threshold_val=0.0)
+    model = trainmodel(dataframe, samples_per_epoch=256 * 100, nb_epoch=10, model=model, pr_threshold_val=0.5)
+    model = trainmodel(dataframe, samples_per_epoch=256 * 100, nb_epoch=5, model=model, pr_threshold_val=0.9)
+    model = trainmodel(dataframe, samples_per_epoch=256 * 100, nb_epoch=5, model=model, pr_threshold_val=0.0)
     save_model(model)
 
